@@ -1,0 +1,226 @@
+step "create-web-app" {
+    name = "Create Web App"
+
+    action {
+        action_type = "Octopus.AzurePowerShell"
+        excluded_environments = ["security"]
+        properties = {
+            Octopus.Action.Azure.AccountId = "azure"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                NOW=$(date +%s)
+                CREATED=${NOW}
+                RESOURCE_NAME=##{Octopus.Space.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}-##{Octopus.Project.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}-##{Octopus.Environment.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}
+                
+                # az tag list --resource-id /subscriptions/##{Octopus.Action.Azure.SubscriptionId}/resourcegroups/${RESOURCE_NAME}rg
+                
+                # Test if the resource group exists
+                EXISTING_RG=$(az group list --query "[?name=='${RESOURCE_NAME}-rg']")
+                LENGTH=$(echo ${EXISTING_RG} | jq '. | length')
+                
+                if [[ $LENGTH == "0" ]]
+                then
+                	echo "Creating new resource group"
+                	az group create -l westus -n "${RESOURCE_NAME}-rg" --tags LifeTimeInDays=7 Created=${NOW}
+                else
+                	echo "Resource group already exists"
+                fi
+                
+                EXISTING_SP=$(az appservice plan list --resource-group "${RESOURCE_NAME}-rg")
+                LENGTH=$(echo ${EXISTING_SP} | jq '. | length')
+                if [[ $LENGTH == "0" ]]
+                then
+                	echo "Creating new service plan"
+                	az appservice plan create \
+                      --sku B1 \
+                      --name "${RESOURCE_NAME}-sp" \
+                      --resource-group "${RESOURCE_NAME}-rg" \
+                      --is-linux
+                else
+                	echo "Service plan already exists"
+                fi
+                
+                EXISTING_WA=$(az webapp list --resource-group "${RESOURCE_NAME}-rg")
+                LENGTH=$(echo ${EXISTING_WA} | jq '. | length')
+                if [[ $LENGTH == "0" ]]
+                then
+                	echo "Creating new web app"
+                	az webapp create \
+                      --resource-group "${RESOURCE_NAME}-rg" \
+                      --plan "${RESOURCE_NAME}-sp" \
+                      --name "${RESOURCE_NAME}-wa" \
+                      --deployment-container-image-name nginx \
+                      --tags \
+                      	octopus-environment="##{Octopus.Environment.Name}" \
+                        octopus-space="##{Octopus.Space.Name}" \
+                        octopus-project="##{Octopus.Project.Name}" \
+                        octopus-role="octopub-webapp-cac"
+                else
+                	echo "Web App already exists"
+                fi
+                
+                HOST=$(az webapp list --resource-group "${RESOURCE_NAME}-rg"  --query "[].{hostName: defaultHostName}" | jq -r '.[0].hostName')
+                set_octopusvariable "HostName" $HOST
+                write_highlight "[https://$HOST](http://$HOST)"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        container {
+            feed = "docker"
+            image = "octopusdeploy/worker-tools:5.0.0-ubuntu.22.04"
+        }
+    }
+}
+
+step "deploy-web-app" {
+    name = "Deploy Web App"
+    properties = {
+        Octopus.Action.TargetRoles = "octopub-webapp-cac"
+    }
+
+    action {
+        action_type = "Octopus.AzureAppService"
+        excluded_environments = ["security"]
+        properties = {
+            Octopus.Action.Azure.DeploymentType = "Container"
+            Octopus.Action.EnabledFeatures = "Octopus.Features.JsonConfigurationVariables,Octopus.Features.ConfigurationTransforms,Octopus.Features.SubstituteInFiles"
+            Octopus.Action.Package.DownloadOnTentacle = "False"
+            Octopus.Action.Package.FeedId = "docker"
+            Octopus.Action.Package.PackageId = "octopussamples/octopub"
+            Octopus.Action.RunOnServer = "true"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        packages {
+            acquisition_location = "NotAcquired"
+            feed = "docker"
+            package_id = "octopussamples/octopub"
+            properties = {
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "end-to-end-test-with-cypress" {
+    name = "End-to-end Test with Cypress"
+
+    action {
+        action_type = "Octopus.Script"
+        excluded_environments = ["security"]
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                cd octopub-cypress
+                
+                NO_COLOR=1 CYPRESS_BASE_URL=https://##{Octopus.Action[Create Web App].Output.HostName}/ cypress run 2>&1
+                RESULT=$?
+                if [[ -f mochawesome.html ]]
+                then
+                  inline-assets mochawesome.html selfcontained.html
+                  new_octopusartifact "${PWD}/selfcontained.html" "selfcontained.html"
+                fi
+                if [[ -d cypress/screenshots ]]
+                then
+                  zip -r screenshots.zip cypress/screenshots
+                  new_octopusartifact "${PWD}/screenshots.zip" "screenshots.zip"
+                fi
+                
+                if [[ -d cypress/videos ]]
+                then
+                  zip -r videos.zip cypress/videos
+                  new_octopusartifact "${PWD}/videos.zip" "videos.zip"
+                fi
+                
+                exit ${RESULT}
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        container {
+            feed = "docker"
+            image = "octopussamples/cypress-included:12.8.1"
+        }
+
+        packages "octopub-cypress" {
+            acquisition_location = "Server"
+            feed = "sales-maven-feed"
+            package_id = "com.octopus:octopub-cypress"
+            properties = {
+                Extract = "True"
+                Purpose = ""
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "check-for-vulnerabilities" {
+    name = "Check for Vulnerabilities"
+
+    action {
+        action_type = "Octopus.Script"
+        is_required = true
+        properties = {
+            Octopus.Action.EnabledFeatures = "Octopus.Features.SubstituteInFiles"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                echo "##octopus[stdout-verbose]"
+                docker pull appthreat/dep-scan
+                echo "##octopus[stdout-default]"
+                
+                TIMESTAMP=$(date +%s%3N)
+                SUCCESS=0
+                for x in $(find . -name bom.xml -type f -print); do
+                    echo "Scanning ${x}"
+                
+                    # Delete any existing report file
+                    if [[ -f "$PWD/depscan-bom.json" ]]; then
+                      rm "$PWD/depscan-bom.json"
+                    fi
+                
+                    # Generate the report, capturing the output, and ensuring $? is set to the exit code
+                    OUTPUT=$(bash -c "docker run --rm -v \"$PWD:/app\" appthreat/dep-scan --bom \"/app/${x}\" --type bom --report_file /app/depscan.json; exit \$?" 2>&1)
+                
+                    # Success is set to 1 if the exit code is not zero
+                    if [[ $? -ne 0 ]]; then
+                        SUCCESS=1
+                    fi
+                
+                    # Print the output stripped of ANSI colour codes
+                    echo -e "${OUTPUT}" | sed 's/\x1b\[[0-9;]*m//g'
+                done
+                
+                set_octopusvariable "VerificationResult" $SUCCESS
+                
+                if [[ $SUCCESS -ne 0 ]]; then
+                  >&2 echo "Critical vulnerabilities were detected"
+                fi
+                
+                exit 0
+                
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.SubstituteInFiles.Enabled = "True"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        packages "sbom" {
+            acquisition_location = "Server"
+            feed = "sales-maven-feed"
+            package_id = "com.octopus:octopub-sbom"
+            properties = {
+                Extract = "True"
+            }
+        }
+    }
+}
