@@ -86,7 +86,7 @@ step "deploy-web-app" {
     action {
         action_type = "Octopus.AzureAppService"
         excluded_environments = ["security"]
-        notes = "Deploys the Azure Web App from a Docker image."
+        notes = "Deploys the Azure web app from a Docker image."
         properties = {
             Octopus.Action.Azure.DeploymentType = "Container"
             Octopus.Action.EnabledFeatures = "Octopus.Features.JsonConfigurationVariables,Octopus.Features.ConfigurationTransforms,Octopus.Features.SubstituteInFiles"
