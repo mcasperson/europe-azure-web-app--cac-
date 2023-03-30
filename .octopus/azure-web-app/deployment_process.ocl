@@ -86,6 +86,7 @@ step "deploy-web-app" {
     action {
         action_type = "Octopus.AzureAppService"
         excluded_environments = ["security"]
+        notes = "Deploys the Azure web app from a Docker image."
         properties = {
             Octopus.Action.Azure.DeploymentType = "Container"
             Octopus.Action.EnabledFeatures = "Octopus.Features.JsonConfigurationVariables,Octopus.Features.ConfigurationTransforms,Octopus.Features.SubstituteInFiles"
@@ -114,6 +115,7 @@ step "end-to-end-test-with-cypress" {
     action {
         action_type = "Octopus.Script"
         excluded_environments = ["security"]
+        notes = "Uses the Cypress Docker image to launch a browser based test of the deployed application."
         properties = {
             Octopus.Action.RunOnServer = "true"
             Octopus.Action.Script.ScriptBody = <<-EOT
@@ -170,6 +172,7 @@ step "check-for-vulnerabilities" {
     action {
         action_type = "Octopus.Script"
         is_required = true
+        notes = "Scans the SBOM associated with the deployed application for known vulnerabilities."
         properties = {
             Octopus.Action.EnabledFeatures = "Octopus.Features.SubstituteInFiles"
             Octopus.Action.RunOnServer = "true"
