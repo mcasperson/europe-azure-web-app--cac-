@@ -10,9 +10,9 @@ step "create-web-app" {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 NOW=$(date +%s)
                 CREATED=${NOW}
-                RESOURCE_NAME=##{Octopus.Space.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}-##{Octopus.Project.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}-##{Octopus.Environment.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}
+                RESOURCE_NAME=#{Octopus.Space.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}-#{Octopus.Project.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}-#{Octopus.Environment.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}
                 
-                # az tag list --resource-id /subscriptions/##{Octopus.Action.Azure.SubscriptionId}/resourcegroups/${RESOURCE_NAME}rg
+                # az tag list --resource-id /subscriptions/#{Octopus.Action.Azure.SubscriptionId}/resourcegroups/${RESOURCE_NAME}rg
                 
                 # Test if the resource group exists
                 EXISTING_RG=$(az group list --query "[?name=='${RESOURCE_NAME}-rg']")
@@ -51,7 +51,7 @@ step "create-web-app" {
                       --name "${RESOURCE_NAME}-wa" \
                       --deployment-container-image-name nginx \
                       --tags \
-                      	octopus-environment="##{Octopus.Environment.Name}" \
+                      	octopus-environment="#{Octopus.Environment.Name}" \
                         octopus-space="##{Octopus.Space.Name}" \
                         octopus-project="##{Octopus.Project.Name}" \
                         octopus-role="octopub-webapp-cac"
@@ -119,7 +119,7 @@ step "end-to-end-test-with-cypress" {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 cd octopub-cypress
                 
-                NO_COLOR=1 CYPRESS_BASE_URL=https://##{Octopus.Action[Create Web App].Output.HostName}/ cypress run 2>&1
+                NO_COLOR=1 CYPRESS_BASE_URL=https://#{Octopus.Action[Create Web App].Output.HostName}/ cypress run 2>&1
                 RESULT=$?
                 if [[ -f mochawesome.html ]]
                 then
