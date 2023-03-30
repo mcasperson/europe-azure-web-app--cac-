@@ -4,6 +4,7 @@ step "create-web-app" {
     action {
         action_type = "Octopus.AzurePowerShell"
         excluded_environments = ["security"]
+        notes = "Creates a new Azure web app, service plan, and resource group"
         properties = {
             Octopus.Action.Azure.AccountId = "azure"
             Octopus.Action.RunOnServer = "true"
