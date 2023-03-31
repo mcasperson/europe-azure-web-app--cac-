@@ -11,7 +11,7 @@ step "create-web-app" {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 NOW=$(date +%s)
                 CREATED=${NOW}
-                RESOURCE_NAME=#{Octopus.Space.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}-#{Octopus.Project.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}-#{Octopus.Environment.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}
+                RESOURCE_NAME=#{Octopus.Space.Name | Replace "[^A-Za-z0-9]" "-" | ToLower | Substring 10}-#{Octopus.Project.Name | Replace "[^A-Za-z0-9]" "-" | ToLower | Substring 10}-#{Octopus.Environment.Name | Replace "[^A-Za-z0-9]" "-" | ToLower | Substring 10}
                 
                 # az tag list --resource-id /subscriptions/#{Octopus.Action.Azure.SubscriptionId}/resourcegroups/${RESOURCE_NAME}rg
                 
