@@ -4,6 +4,7 @@ step "create-web-app" {
     action {
         action_type = "Octopus.AzurePowerShell"
         excluded_environments = ["security"]
+        notes = "Create a resource group, service plan, and web app in Azure."
         properties = {
             Octopus.Action.Azure.AccountId = "azure"
             Octopus.Action.RunOnServer = "true"
@@ -114,6 +115,7 @@ step "end-to-end-test-with-cypress" {
     action {
         action_type = "Octopus.Script"
         excluded_environments = ["security"]
+        notes = "Run a browser based test using the Cypress Docker image."
         properties = {
             Octopus.Action.RunOnServer = "true"
             Octopus.Action.Script.ScriptBody = <<-EOT
@@ -170,6 +172,7 @@ step "check-for-vulnerabilities" {
     action {
         action_type = "Octopus.Script"
         is_required = true
+        notes = "Scan for vulnerabilities in the SBOM associated with the web app image."
         properties = {
             Octopus.Action.EnabledFeatures = "Octopus.Features.SubstituteInFiles"
             Octopus.Action.RunOnServer = "true"
