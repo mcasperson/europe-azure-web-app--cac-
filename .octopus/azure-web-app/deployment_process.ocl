@@ -1,3 +1,16 @@
+step "manual-intervention-required" {
+    name = "Manual Intervention Required"
+
+    action {
+        action_type = "Octopus.Manual"
+        environments = ["production-1"]
+        properties = {
+            Octopus.Action.Manual.BlockConcurrentDeployments = "False"
+            Octopus.Action.Manual.Instructions = "Do you wish to proceed?"
+        }
+    }
+}
+
 step "create-web-app" {
     name = "Create Web App"
 
@@ -11,7 +24,7 @@ step "create-web-app" {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 NOW=$(date +%s)
                 CREATED=${NOW}
-                RESOURCE_NAME=#{Octopus.Space.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}-#{Octopus.Project.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}-#{Octopus.Environment.Name | Replace "[^A-Za-z0-9]" "-" | ToLower}
+                RESOURCE_NAME=#{Octopus.Space.Name | Replace "[^A-Za-z0-9]" "-" | ToLower | Substring 10}-#{Octopus.Project.Name | Replace "[^A-Za-z0-9]" "-" | ToLower | Substring 10}-#{Octopus.Environment.Name | Replace "[^A-Za-z0-9]" "-" | ToLower | Substring 10}
                 
                 # az tag list --resource-id /subscriptions/#{Octopus.Action.Azure.SubscriptionId}/resourcegroups/${RESOURCE_NAME}rg
                 
