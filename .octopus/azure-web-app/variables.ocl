@@ -1,0 +1,5 @@
+variable "Test" {
+    value "a" {
+        machine = ["azure-web-app-europe-azure-web-app-cac-development-rg-europe-azure-web-app-cac-development-wa"]
+    }
+}
