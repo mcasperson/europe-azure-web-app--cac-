@@ -228,18 +228,3 @@ step "check-for-vulnerabilities" {
         }
     }
 }
-
-step "kubernetes-inspect-resources" {
-    name = "Kubernetes - Inspect Resources"
-
-    action {
-        properties = {
-            K8SInspectCreateArtifact = "False"
-            K8SInspectKubectlVerb = "get"
-            K8SInspectResource = "pod"
-            Octopus.Action.Template.Id = "ActionTemplates-661"
-            Octopus.Action.Template.Version = "6"
-        }
-        worker_pool_variable = ""
-    }
-}
