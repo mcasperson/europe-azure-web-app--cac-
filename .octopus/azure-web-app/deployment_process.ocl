@@ -1,5 +1,5 @@
 step "manual-intervention-required" {
-    name = "Manual Intervention"
+    name = "Manual Intervention Required"
 
     action {
         action_type = "Octopus.Manual"
